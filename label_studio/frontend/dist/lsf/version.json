@@ -1,0 +1,6 @@
+{
+  "message": "fix: DEV-1784: Fix errors in console while working with labels list with ocr",
+  "commit": "0e44de75f378964aeff87afe75c5c0c8df122524",
+  "branch": "fix/DEV-1784/drawing-hanging",
+  "date": "2022-03-01T23:40:46Z"
+}
