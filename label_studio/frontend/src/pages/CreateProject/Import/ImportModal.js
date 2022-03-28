@@ -11,6 +11,7 @@ import { useRefresh } from '../../../utils/hooks';
 import { ImportPage } from './Import';
 import { useImportPage } from './useImportPage';
 
+
 export const Inner = () => {
   const history = useHistory();
   const location = useFixedLocation();
@@ -50,6 +51,11 @@ export const Inner = () => {
     if (!imported) return;
     backToDM();
   }, [backToDM, finishUpload]);
+
+  const onFinish_ver2 = useCallback(async () => {
+    const imported = await finishUpload();
+    if (!imported) return;
+  }, [finishUpload]);
 
   return (
     <Modal

@@ -6,6 +6,9 @@ import "./Import.styl";
 import { IconUpload, IconInfo, IconError } from '../../../assets/icons';
 import { useAPI } from '../../../providers/ApiProvider';
 import axios from 'axios'
+// import { onFinish } from './ImportModal';
+
+
 
 const importClass = cn("upload_page");
 const dropzoneClass = cn("dropzone");
@@ -138,7 +141,7 @@ export const ImportPage = ({
     if (action.sending) {
       console.log("sendingggggggggggggggggggg")
       console.log(state)
-      console.log(state)
+      console.log(state.uploading)
       console.log(action.sending)
       return { ...state, uploading: [...action.sending, ...state.uploading] };
     }
@@ -187,6 +190,18 @@ export const ImportPage = ({
     if (files?.length) {
       setIds(unique([...ids, ...files.map(f => f.id)]));
     }
+
+    console.log("đạkáidklhjálkjdlkạdkljálkdjákldjlkạdá")
+    console.log(files[0].id)
+    const api_ver2 = "http://127.0.0.1:8080/api/projects/19/reimport"
+    // const token = JSON.parse(sessionStorage.getItem('data'))
+    const body = {
+      file_upload_ids: [files[0].id],
+      files_as_tasks_list: false
+    }
+    const response = await axios.post(api_ver2, body, { headers: { "content-type": "application/json", "Cookie":document.cookie } })
+    console.log(response.data)
+    console.log("3213j21lk3jkl12j3kl21j3kl12j3klj21lk3j12kl312")
     return files;
   }, [project]);
 
@@ -229,7 +244,7 @@ export const ImportPage = ({
     console.log(files)
     console.log(body)
     dispatch({ sending: files });
-    
+
     const query = dontCommitToProject ? { commit_to_project: "false" } : {};
     // @todo use json for dataset uploads by URL
     const contentType = body instanceof FormData
@@ -248,7 +263,7 @@ export const ImportPage = ({
       onFinish?.(res);
     }
     else onError?.(res?.response);
-    
+
     dispatch({ sent: files });
     console.log("enddd import file 222222222222222222")
   }, [project, onFinish]);
@@ -268,9 +283,9 @@ export const ImportPage = ({
     sendFiles(e.target.files);
     e.target.value = "";
   }, [sendFiles]);
-  
-  const get_image_url =  async (url_data, key_auth)  => {
-    const api = await url_data
+
+  const get_image_url = async (url_data, key_auth) => {
+    const api_ver3 = await url_data
     // const token = JSON.parse(sessionStorage.getItem('data'))
     const body = {
       start: 0,
@@ -293,7 +308,7 @@ export const ImportPage = ({
     }
     const token = await key_auth
     try {
-      const response = await axios.post(api, body, { headers: { "Authorization": `Bearer ${token}`, "content-type": "application/json", } })
+      const response = await axios.post(api_ver3, body, { headers: { "Authorization": `Bearer ${token}`, "content-type": "application/json", } })
       const res = await response.data
       return await res.items
     }
@@ -303,22 +318,75 @@ export const ImportPage = ({
   }
   const sleep = useCallback(milliseconds => {
     return new Promise(resolve => setTimeout(resolve, milliseconds))
-  },[])
+  }, [])
 
   const on_form_custom = async event => {
     event.preventDefault();
     const url_data = urlRef_form_fake.current?.value;
     const key_data = key_auth.current?.value;
-    const t = await get_image_url(url_data,key_data)
+    const t = await get_image_url(url_data, key_data)
 
     for (let i = 0; i < t.length; i++) {
       document.getElementById("input_link_image").value = await key_data + "/https://8q4pxr3tmy.eu-west-1.awsapprunner.com/api/v1/modules/08da010f-c553-4d8e-8a98-075a7e0964a6/projects/08da0117-075b-4d10-8112-288671bc741e/datasets/dataset-items/image?fileId=" + t[i].fileId;
       await console.log(document.getElementById("input_link_image").value)
-      await onLoadURL_ver2(document.getElementById("input_link_image").value)
-      await sleep(200)
+      // await onLoadURL_ver2(document.getElementById("input_link_image").value)
+      onStart();
+      const url = await document.getElementById("input_link_image").value;
+      if (!url) {
+        setLoading(false);
+        return;
+      }
+      urlRef.current.value = "";
+      onWaiting?.(true);
+      const body = new URLSearchParams({ url });
+      // importFiles([{ name: url }], body);
+      const files = await [{ name: url }]
+      console.log("import file 22222222222222222222222222222222222222")
+      console.log(files)
+      console.log(body)
+      dispatch({ sending: files });
+
+      const query = dontCommitToProject ? { commit_to_project: "false" } : {};
+      // @todo use json for dataset uploads by URL
+      const contentType = body instanceof FormData
+        ? 'multipart/form-data' // usual multipart for usual files
+        : 'application/x-www-form-urlencoded'; // chad urlencoded for URL uploads
+      const res = await api.callApi("importFiles", {
+        params: { pk: project.id, ...query },
+        headers: { 'Content-Type': contentType },
+        body,
+        errorFilter: () => true,
+      });
+
+      if (res && !res.error) {
+        console.log("ressssssss")
+        console.log(res)
+        // onFinish?.(res);
+        console.log("onFinish  33333333333333333333333333333333333333333333333")
+        const { could_be_tasks_list, data_columns, file_upload_ids } = res;
+        console.log(could_be_tasks_list)
+        console.log(data_columns)
+        console.log(file_upload_ids)
+        const file_ids = [...ids, ...file_upload_ids];
+        console.log("file ids")
+        console.log(file_ids)
+        setIds(file_ids);
+        if (could_be_tasks_list && !csvHandling) setCsvHandling("choose");
+        setLoading(true);
+        onWaiting?.(false);
+        addColumns(data_columns);
+        loadFilesList(file_ids).then(() => setLoading(false));
+      }
+      else onError?.(res?.response);
+
+      dispatch({ sent: files });
+      console.log("enddd import file 222222222222222222")
+
+      // await sleep(200)
+      // await onFinish()
     }
   }
-  
+
   const onLoadURL = useCallback(e => {
     e.preventDefault();
     onStart();
@@ -333,7 +401,7 @@ export const ImportPage = ({
     importFiles([{ name: url }], body);
   }, [importFiles]);
 
-  const onLoadURL_ver2 = useCallback( url_ver2 => {
+  const onLoadURL_ver2 = useCallback(url_ver2 => {
     onStart();
     const url = url_ver2;
     if (!url) {
@@ -370,6 +438,7 @@ export const ImportPage = ({
     name: "csv",
     type: "radio",
     onChange: e => setCsvHandling(e.target.value),
+
   };
 
 
