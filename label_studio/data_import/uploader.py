@@ -17,7 +17,7 @@ from rest_framework.exceptions import ValidationError
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from urllib.request import urlopen, Request
-
+from urllib.parse import urlparse
 from .models import FileUpload
 
 logger = logging.getLogger(__name__)
@@ -69,6 +69,12 @@ def str_to_json(data):
     except ValueError:
         return None
 
+def uri_validator(x):
+    try:
+        result = urlparse(x)
+        return all([result.scheme, result.netloc])
+    except:
+        return False
 
 def tasks_from_url(file_upload_ids, project, request, url):
     """ Download file using URL and read tasks from it
@@ -77,37 +83,70 @@ def tasks_from_url(file_upload_ids, project, request, url):
     print(file_upload_ids)
     print(project)
     print(request)
+    if uri_validator(url) == True:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        print("dadadadasdjlshakjdhkajshdjkhasdjkhasd")
+        print(request)
+        print(project)
+        print(file_upload_ids)
+        try:
+            filename = url.rsplit('/', 1)[-1]
+            with urlopen(url, context=ctx) as file:
+                # check size
+                meta = file.info()
+                file.size = int(meta.get("Content-Length"))
+                file.urlopen = True
+                check_file_sizes_and_number({url: file})
+                file_content = file.read()
+                if isinstance(file_content, str):
+                    file_content = file_content.encode()
+                file_upload = create_file_upload(request, project, SimpleUploadedFile(filename, file_content))
+                file_upload_ids.append(file_upload.id)
+                print(file_upload_ids)
+                tasks, found_formats, data_keys = FileUpload.load_tasks_from_uploaded_files(project, file_upload_ids)
+                print(tasks)
+                print(found_formats)
+                print(data_keys)
 
-    url_array = url.split("/", 1)
-    url = url_array[1]
-    url_token = url_array[0]
-    req = Request(url)
-    req.add_header('Authorization', 'Bearer '+ url_token)
-    # process URL with tasks
-    ctx = ssl.create_default_context()
-    print(req)
-    # print(url_token)
-    print(url)
-    ctx.check_hostname = False
-    ctx.verify_mode = ssl.CERT_NONE
-    try:
-        filename = url.rsplit('/', 1)[-1] + '.jpg'
-        print("ten tente tententnetnet")
-        print(filename)
-        with urlopen(req, context=ctx) as file:
-            # check size
-            meta = file.info()
-            print(file.info())
-            print(meta)
-            file.size = int(400)
-            file.urlopen = True
-            check_file_sizes_and_number({url: file})
-            file_content = file.read()
-            if isinstance(file_content, str):
-                file_content = file_content.encode()
-            file_upload = create_file_upload(request, project, SimpleUploadedFile(filename, file_content))
-            file_upload_ids.append(file_upload.id)
-            tasks, found_formats, data_keys = FileUpload.load_tasks_from_uploaded_files(project, file_upload_ids)
+        except ValidationError as e:
+            raise e
+        except Exception as e:
+            raise ValidationError(str(e))
+    else:
+        url_array = url.split("/", 1)
+
+        url = url_array[1]
+        print(url)
+        url_token = url_array[0]
+        req = Request(url)
+        req.add_header('Authorization', 'Bearer '+ url_token)
+        # process URL with tasks
+        ctx = ssl.create_default_context()
+        print(req)
+        # print(url_token)
+        
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        try:
+            filename = url.rsplit('/', 1)[-1] + '.jpg'
+            print("ten tente tententnetnet")
+            print(filename)
+            with urlopen(req, context=ctx) as file:
+                # check size
+                meta = file.info()
+                print(file.info())
+                print(meta)
+                file.size = int(400)
+                file.urlopen = True
+                check_file_sizes_and_number({url: file})
+                file_content = file.read()
+                if isinstance(file_content, str):
+                    file_content = file_content.encode()
+                file_upload = create_file_upload(request, project, SimpleUploadedFile(filename, file_content))
+                file_upload_ids.append(file_upload.id)
+                tasks, found_formats, data_keys = FileUpload.load_tasks_from_uploaded_files(project, file_upload_ids)
 
 
         
@@ -123,10 +162,10 @@ def tasks_from_url(file_upload_ids, project, request, url):
         # file_upload_ids.append(file_upload.id)
         # tasks, found_formats, data_keys = FileUpload.load_tasks_from_uploaded_files(project, file_upload_ids)
 
-    except ValidationError as e:
-        raise e
-    except Exception as e:
-        raise ValidationError(str(e))
+        except ValidationError as e:
+            raise e
+        except Exception as e:
+            raise ValidationError(str(e))
     return data_keys, found_formats, tasks, file_upload_ids
 
     

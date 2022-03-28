@@ -120,6 +120,15 @@ export const ImportPage = ({
   setCsvHandling,
   addColumns,
 }) => {
+  console.log(project)
+  console.log(onWaiting)
+  console.log(onFileListUpdate)
+  console.log(highlightCsvHandling)
+  console.log(csvHandling)
+  console.log(setCsvHandling)
+  console.log(addColumns)
+  console.log("111111111111111111111111111111111111111111111111111111111111111111111111")
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState();
   const [ids, _setIds] = useState([]);
@@ -127,12 +136,22 @@ export const ImportPage = ({
 
   const processFiles = (state, action) => {
     if (action.sending) {
+      console.log("sendingggggggggggggggggggg")
+      console.log(state)
+      console.log(state)
+      console.log(action.sending)
       return { ...state, uploading: [...action.sending, ...state.uploading] };
     }
     if (action.sent) {
+      console.log("senttttttttttttttttt")
+      console.log(state)
+      console.log(state.uploading.filter(f => !action.sent.includes(f)))
       return { ...state, uploading: state.uploading.filter(f => !action.sent.includes(f)) };
     }
     if (action.uploaded) {
+      console.log("uploadeddddddddddddd")
+      console.log(state)
+      console.log(action.uploaded)
       return { ...state, uploaded: unique([...state.uploaded, ...action.uploaded], (a, b) => a.id === b.id) };
     }
     // if (action.ids) {
@@ -140,21 +159,26 @@ export const ImportPage = ({
     //   onFileListUpdate?.(ids);
     //   return {...state, ids };
     // }
+    console.log(state)
     return state;
   };
   const [files, dispatch] = useReducer(processFiles, { uploaded: [], uploading: [] });
   const showList = Boolean(files.uploaded?.length || files.uploading?.length);
 
   const setIds = (ids) => {
+    console.log("setIds ssssss")
     _setIds(ids);
     onFileListUpdate?.(ids);
   };
 
   const loadFilesList = useCallback(async (file_upload_ids) => {
+    console.log("loadFilesList tttttttttttttt")
     const query = {};
     if (file_upload_ids) {
+      console.log(file_upload_ids)
       // should be stringified array "[1,2]"
       query.ids = JSON.stringify(file_upload_ids);
+      console.log(query.ids)
     }
     const files = await api.callApi("fileUploads", {
       params: { pk: project.id, ...query },
@@ -183,8 +207,14 @@ export const ImportPage = ({
     onWaiting?.(false);
   };
   const onFinish = useCallback(res => {
+    console.log("onFinish  33333333333333333333333333333333333333333333333")
     const { could_be_tasks_list, data_columns, file_upload_ids } = res;
+    console.log(could_be_tasks_list)
+    console.log(data_columns)
+    console.log(file_upload_ids)
     const file_ids = [...ids, ...file_upload_ids];
+    console.log("file ids")
+    console.log(file_ids)
     setIds(file_ids);
     if (could_be_tasks_list && !csvHandling) setCsvHandling("choose");
     setLoading(true);
@@ -194,8 +224,12 @@ export const ImportPage = ({
   }, [addColumns, loadFilesList, setIds, ids, setLoading]);
 
   const importFiles = useCallback(async (files, body) => {
-    dispatch({ sending: files });
 
+    console.log("import file 22222222222222222222222222222222222222")
+    console.log(files)
+    console.log(body)
+    dispatch({ sending: files });
+    
     const query = dontCommitToProject ? { commit_to_project: "false" } : {};
     // @todo use json for dataset uploads by URL
     const contentType = body instanceof FormData
@@ -208,16 +242,22 @@ export const ImportPage = ({
       errorFilter: () => true,
     });
 
-    if (res && !res.error) onFinish?.(res);
+    if (res && !res.error) {
+      console.log("ressssssss")
+      console.log(res)
+      onFinish?.(res);
+    }
     else onError?.(res?.response);
-
+    
     dispatch({ sent: files });
+    console.log("enddd import file 222222222222222222")
   }, [project, onFinish]);
 
   const sendFiles = useCallback(files => {
     onStart();
     onWaiting?.(true);
     files = [...files]; // they can be array-like object
+
     const fd = new FormData;
     for (let f of files) fd.append(f.name, f);
     console.log(fd);
@@ -261,9 +301,10 @@ export const ImportPage = ({
       console.log(error.messsage);
     }
   }
-  const sleep = (milliseconds) => {
+  const sleep = useCallback(milliseconds => {
     return new Promise(resolve => setTimeout(resolve, milliseconds))
-  }
+  },[])
+
   const on_form_custom = async event => {
     event.preventDefault();
     const url_data = urlRef_form_fake.current?.value;
@@ -307,6 +348,7 @@ export const ImportPage = ({
 
   useEffect(() => {
     if (project?.id !== undefined) {
+      console.log("chay vao use effect project?.id !== undefined")
       loadFilesList().then(files => {
         if (csvHandling) return;
         // empirical guess on start if we have some possible tasks list/time series problem
